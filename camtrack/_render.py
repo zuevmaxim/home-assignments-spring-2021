@@ -4,6 +4,8 @@ __all__ = [
     'CameraTrackRenderer'
 ]
 
+from collections import namedtuple
+from contextlib import ExitStack
 from typing import List, Tuple
 
 import numpy as np
@@ -11,14 +13,11 @@ from OpenGL import GL
 from OpenGL.GL import shaders
 from OpenGL import GLUT
 from OpenGL.arrays import vbo
-
-from pyquaternion import Quaternion
 from PIL import Image
+from pyquaternion import Quaternion
 import transforms3d
-import data3d
 
-from collections import namedtuple
-from contextlib import ExitStack
+import data3d
 
 
 def _build_point_cloud_program():

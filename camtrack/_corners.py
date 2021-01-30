@@ -7,6 +7,8 @@ __all__ = [
     'dump',
     'load',
     'draw',
+    'calc_track_interval_mappings',
+    'calc_track_len_array_mapping',
     'without_short_tracks',
     'create_cli'
 ]
@@ -83,6 +85,16 @@ def _to_int_tuple(point):
     return tuple(map(int, np.round(point)))
 
 
+class _ColorGenerator:
+
+    def __init__(self):
+        self._rng = np.random.RandomState()
+
+    def __call__(self, corner_id):
+        self._rng.seed(corner_id)
+        return _to_int_tuple(self._rng.random(size=(3,)))
+
+
 def draw(grayscale_image: np.ndarray, corners: FrameCorners) -> np.ndarray:
     """
     Draw corners on image.
@@ -92,10 +104,11 @@ def draw(grayscale_image: np.ndarray, corners: FrameCorners) -> np.ndarray:
     :return: BGR image with drawn corners.
     """
     bgr = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2BGR)
-    for point, block_size in zip(corners.points, corners.sizes):
+    colors = map(_ColorGenerator(), corners.ids)
+    for color, point, block_size in zip(colors, corners.points, corners.sizes):
         point = _to_int_tuple(point)
         radius = int(block_size / 2)
-        cv2.circle(bgr, point, radius, (0, 1, 0))
+        cv2.circle(bgr, point, radius, color)
     return bgr
 
 
@@ -176,6 +189,31 @@ class StorageFilter(CornerStorage):
         return self._storage.max_corner_id()
 
 
+def calc_track_interval_mappings(corner_storage: CornerStorage) -> np.ndarray:
+    max_id = max(corners.ids.max() for corners in corner_storage)
+    left = np.full((max_id + 1,), len(corner_storage))
+    right = np.full((max_id + 1,), -1)
+    for i, corners in enumerate(corner_storage):
+        unique = np.unique(corners.ids)
+        left[unique] = np.minimum(left[unique], i)
+        right[unique] = np.maximum(right[unique], i)
+    return left, right
+
+
+def calc_track_len_array_mapping(corner_storage: CornerStorage) -> np.ndarray:
+    """
+    Calculate lengths of all tracks in the given corner storage.
+
+    :param corner_storage: corner storage to calculate track lengths.
+    :return: ndarray, i-th element contains the length of the track with id=i.
+    """
+    left, right = calc_track_interval_mappings(corner_storage)
+    mask = left <= right
+    counter = np.zeros_like(left)
+    counter[mask] = right[mask] - left[mask] + 1
+    return counter
+
+
 def without_short_tracks(corner_storage: CornerStorage,
                          min_len: int) -> CornerStorage:
     """
@@ -185,11 +223,7 @@ def without_short_tracks(corner_storage: CornerStorage,
     :param min_len: min allowed track length.
     :return: filtered corner storage.
     """
-    max_id = max(corners.ids.max() for corners in corner_storage)
-    counter = np.zeros((max_id + 1,))
-    for corners in corner_storage:
-        unique, counts = np.unique(corners.ids, return_counts=True)
-        counter[unique] += counts
+    counter = calc_track_len_array_mapping(corner_storage)
 
     def predicate(corners):
         return counter[corners.ids.flatten()] >= min_len

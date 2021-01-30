@@ -7,6 +7,8 @@ __all__ = [
     'dump',
     'load',
     'draw',
+    'calc_track_interval_mappings',
+    'calc_track_len_array_mapping',
     'without_short_tracks'
 ]
 
@@ -15,8 +17,18 @@ import cv2
 import numpy as np
 import pims
 
-from _corners import FrameCorners, CornerStorage, StorageImpl
-from _corners import dump, load, draw, without_short_tracks, create_cli
+from _corners import (
+    FrameCorners,
+    CornerStorage,
+    StorageImpl,
+    dump,
+    load,
+    draw,
+    calc_track_interval_mappings,
+    calc_track_len_array_mapping,
+    without_short_tracks,
+    create_cli
+)
 
 
 class _CornerStorageBuilder:
