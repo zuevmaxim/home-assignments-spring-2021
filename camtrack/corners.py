@@ -60,17 +60,17 @@ def id_closer_than(array, value, distance):
 
 def _build_impl(frame_sequence: pims.FramesSequence,
                 builder: _CornerStorageBuilder) -> None:
-    maxCorners = 250
+    image_0 = frame_sequence[0]
+    maxCorners = (image_0.shape[0] * image_0.shape[1]) // 2000
     qualityLevel = 0.001
     minDistance = 20
     blockSize = 9
     winSize = (20, 20)
 
-    image_0 = frame_sequence[0]
     corner_points = cv2.goodFeaturesToTrack(image_0, maxCorners, qualityLevel, minDistance, blockSize=blockSize,
                                             useHarrisDetector=False).reshape((-1, 2))
     ids = np.arange(0, len(corner_points))
-    corners = FrameCorners(ids, corner_points, np.full(corner_points.shape, (blockSize, blockSize)))
+    corners = FrameCorners(ids, corner_points, np.full(corner_points.shape, blockSize))
     builder.set_corners_at_frame(0, corners)
     max_id = ids.max()
     for frame, image_1 in enumerate(frame_sequence[1:], 1):
@@ -94,7 +94,7 @@ def _build_impl(frame_sequence: pims.FramesSequence,
         corner_points = np.concatenate((corner_points, new_corner_points))
         ids = np.concatenate((ids, new_ids))
 
-        corners = FrameCorners(ids, corner_points, np.full(corner_points.shape, (blockSize, blockSize)))
+        corners = FrameCorners(ids, corner_points, np.full(corner_points.shape, blockSize))
         builder.set_corners_at_frame(frame, corners)
         image_0 = image_1
 
