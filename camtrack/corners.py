@@ -69,10 +69,10 @@ def _build_impl(frame_sequence: pims.FramesSequence,
 
     corner_points = cv2.goodFeaturesToTrack(image_0, maxCorners, qualityLevel, minDistance, blockSize=blockSize,
                                             useHarrisDetector=False).reshape((-1, 2))
-    ids = np.arange(0, len(corner_points))
+    max_id = len(corner_points)
+    ids = np.arange(0, max_id)
     corners = FrameCorners(ids, corner_points, np.full(corner_points.shape, blockSize))
     builder.set_corners_at_frame(0, corners)
-    max_id = ids.max()
     for frame, image_1 in enumerate(frame_sequence[1:], 1):
         nextPts, status, _ = cv2.calcOpticalFlowPyrLK(
             np.asarray(image_0 * 256, np.uint8),
