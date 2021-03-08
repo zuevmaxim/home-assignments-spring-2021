@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple
 
 import click
 import numpy as np
-from cv2 import solvePnPRansac
+from cv2 import solvePnPRansac, solvePnP
 
 from corners import CornerStorage
 from data3d import CameraParameters, PointCloud, Pose
@@ -44,7 +44,7 @@ def track_and_calc_colors(camera_parameters: CameraParameters,
 
     frame_count = len(corner_storage)
     view_mats = [None] * frame_count
-    params = TriangulationParameters(max_reprojection_error=1, min_triangulation_angle_deg=1, min_depth=0.5)
+    params = TriangulationParameters(max_reprojection_error=2, min_triangulation_angle_deg=1, min_depth=0.5)
 
     id_1, pose_1 = known_view_1
     id_2, pose_2 = known_view_2
@@ -62,25 +62,27 @@ def track_and_calc_colors(camera_parameters: CameraParameters,
             if view_mats[i] is not None:
                 continue
             corners = corner_storage[i]
-            ids = np.intersect1d(corners.ids, point_cloud_builder.ids)
-            ids = set(ids)
-            points_2d = np.array([p for z, p in zip(corners.ids.reshape(-1), corners.points) if z in ids], )
-            points_3d = np.array([p for z, p in zip(point_cloud_builder.ids.reshape(-1), point_cloud_builder.points)
-                                  if z in ids])
+            ids, ids1, ids2 = np.intersect1d(corners.ids, point_cloud_builder.ids, return_indices=True)
+            points_2d, points_3d = corners.points[ids1], point_cloud_builder.points[ids2]
             retval, rvec, tvec, inliers = solvePnPRansac(points_3d, points_2d, intrinsic_mat, distCoeffs=None)
+            if not retval:
+                continue
+            retval, rvec, tvec = solvePnP(points_3d[inliers], points_2d[inliers], intrinsic_mat, distCoeffs=None,
+                                          rvec=rvec, tvec=tvec, useExtrinsicGuess=True)
             if not retval:
                 continue
             view_mats[i] = rodrigues_and_translation_to_view_mat3x4(rvec, tvec)
             update = True
+            outliers = np.delete(ids, inliers)
             for j in range(i):
                 if view_mats[j] is None:
                     continue
-                correspondences = build_correspondences(corners, corner_storage[j])
+                correspondences = build_correspondences(corners, corner_storage[j], ids_to_remove=outliers)
                 points, ids, _ = triangulate_correspondences(correspondences, view_mats[i], view_mats[j], intrinsic_mat,
                                                              params)
                 point_cloud_builder.add_points(ids.reshape(-1), points)
             click.echo("Process frame %d/%d. %d 3D points found. inliners=%d"
-                  % (i + 1, frame_count, len(point_cloud_builder.points), len(inliers)))
+                       % (i + 1, frame_count, len(point_cloud_builder.points), len(inliers)))
         if not update:
             break
 
