@@ -38,7 +38,8 @@ def init_first_camera_positions(intrinsic_mat, corner_storage):
     confidence = 0.9
     params = TriangulationParameters(max_reprojection_error=2, min_triangulation_angle_deg=1, min_depth=0.5)
 
-    for i in range(frame_count):
+    for i in range(0, frame_count, 10):
+        print("Init first camera. Frame %d/%d" % (i + 1, frame_count))
         for j in range(i + 3, min(i + 30, frame_count), 3):
             correspondences = build_correspondences(corner_storage[i], corner_storage[j])
             if len(correspondences.ids) < 5:
@@ -106,6 +107,8 @@ def track_and_calc_colors(camera_parameters: CameraParameters,
             corners = corner_storage[i]
             ids, ids1, ids2 = np.intersect1d(corners.ids, point_cloud_builder.ids, return_indices=True)
             points_2d, points_3d = corners.points[ids1], point_cloud_builder.points[ids2]
+            if len(ids) < 6:
+                continue
             retval, rvec, tvec, inliers = solvePnPRansac(points_3d, points_2d, intrinsic_mat, distCoeffs=None)
             if not retval:
                 continue
