@@ -73,6 +73,7 @@ def _build_impl(frame_sequence: pims.FramesSequence,
     ids = np.arange(0, max_id)
     corners = FrameCorners(ids, corner_points, np.full(corner_points.shape, blockSize))
     builder.set_corners_at_frame(0, corners)
+    max_id = ids.max()
     for frame, image_1 in enumerate(frame_sequence[1:], 1):
         nextPts, status, _ = cv2.calcOpticalFlowPyrLK(
             np.asarray(image_0 * 256, np.uint8),
